@@ -13,10 +13,24 @@ from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 logger = logging.getLogger(__name__)
 
 
+def setup_env_common(env: Environment):
+    """
+    Common setup steps that apply to all datasets.
+    This includes installing system packages and setting up git for commits.
+    """
+    # Install ripgrep
+    env.run_shell("apt-get update && apt-get install -y ripgrep 2>/dev/null || true")
+
+    # Commit all changes to ensure we have a clean state
+    env.run_shell("git config --global user.email 'you@example.com'")
+    env.run_shell("git config --global user.name 'Your Name'")
+    env.run_shell("git add . && git commit -m 'add changes'")
+
+
 def setup_env_swebench(env: Environment):
     """
-    Mimics the R2E-Gym setup function with both swebench and non-swebench paths.
-    Detects which type of image we're using and applies the appropriate setup.
+    SWE-bench specific environment setup.
+    Includes PATH configuration, conda env setup, and package installation.
     """
     repo_path = "/testbed"
     alt_path = "/root"
@@ -63,13 +77,16 @@ def setup_env_swebench(env: Environment):
     # We will not use this script in nano-agent
     # env.run_shell(f"ln -sf {alt_path}/r2e_tests {repo_path}/r2e_tests 2>/dev/null || true")
     
-    # Install ripgrep
-    env.run_shell("apt-get update && apt-get install -y ripgrep 2>/dev/null || true")
+    # Call common setup
+    setup_env_common(env)
 
-    # Commit all changes to ensure we have a clean state
-    env.run_shell("git config --global user.email 'you@example.com'")
-    env.run_shell("git config --global user.name 'Your Name'")
-    env.run_shell("git add . && git commit -m 'add changes'")
+
+def setup_env_swegym(env: Environment):
+    """
+    SWE-Gym specific environment setup.
+    Only calls the common setup since SWE-Gym images are pre-configured.
+    """
+    setup_env_common(env)
 
 
 # Supported HuggingFace dataset names
@@ -83,6 +100,27 @@ SUPPORTED_DATASETS = {
 def _is_swegym_dataset(dataset_name: str) -> bool:
     """Check if the dataset name is a SWE-Gym dataset."""
     return dataset_name.startswith("SWE-Gym/")
+
+
+def _get_setup_fn(dataset_name: str):
+    """
+    Get the appropriate setup function for the given dataset.
+    
+    Args:
+        dataset_name: HuggingFace dataset name
+    
+    Returns:
+        Setup function to use for the environment
+    """
+    if _is_swegym_dataset(dataset_name):
+        return setup_env_swegym
+    elif dataset_name.startswith("princeton-nlp/SWE-bench"):
+        return setup_env_swebench
+    else:
+        raise ValueError(
+            f"Unsupported dataset: {dataset_name}. "
+            f"Supported datasets are: {', '.join(sorted(SUPPORTED_DATASETS))}"
+        )
 
 
 def _construct_image_name(instance_id: str, dataset_name: str) -> str:
@@ -164,7 +202,8 @@ def _process_one(data: dict[str, Any], config: NanoConfig, dataset_name: Optiona
         
         image_name = _construct_image_name(instance_id, dataset_name)
         workdir = "/testbed"
-        env = ApptainerEnvironment(image=f"docker://{image_name}", workdir=workdir, setup_fn=setup_env_swebench)
+        setup_fn = _get_setup_fn(dataset_name)
+        env = ApptainerEnvironment(image=f"docker://{image_name}", workdir=workdir, setup_fn=setup_fn)
         agent_kwargs["env"] = env
     elif env:
         agent_kwargs["env"] = env
