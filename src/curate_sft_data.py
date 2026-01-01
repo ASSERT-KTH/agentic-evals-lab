@@ -54,11 +54,11 @@ class Config:
 cs = ConfigStore.instance()
 cs.store(name="base_curation_config", node=Config, group="")
 
-def process_one_with_reward(problem_data: dict[str, Any], config: NanoConfig) -> dict[str, Any]:
+def process_one_with_reward(problem_data: dict[str, Any], config: NanoConfig, dataset_name: str) -> dict[str, Any]:
     """
     Helper function that wraps _process_one and calculates reward.
     """
-    result = _process_one(problem_data, config)
+    result = _process_one(problem_data, config, dataset_name)
     
     # Calculate rewards using same approach as train_grpo
     generated_diff = result["generated_diff"]
@@ -122,7 +122,7 @@ def main(cfg: Config) -> None:
     agent_config = NanoConfig(**OmegaConf.to_container(cfg.agent, resolve=True))
     
     with ThreadPoolExecutor(max_workers=cfg.curation.max_workers) as executor:
-        futures = [executor.submit(process_one_with_reward, task, agent_config) for task in all_rollout_tasks]
+        futures = [executor.submit(process_one_with_reward, task, agent_config, cfg.curation.input_dataset_name) for task in all_rollout_tasks]
         
         for future in as_completed(futures):
             completed_count += 1

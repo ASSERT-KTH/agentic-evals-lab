@@ -261,7 +261,10 @@ def main(cfg: Config) -> None:
         # Convert OmegaConf to NanoConfig dataclass
         agent_config = AgentConfig(**OmegaConf.to_container(cfg.agent, resolve=True))
         if agent_config.agent_kind == "nano":
-            rollout_func = partial(nano_rollout_func, config=agent_config)
+            # Extract dataset_name from config for nano_rollout_func
+            # FIXME: the multilingual mixed config/dataset is not supported yet with the apptainer backend and will throw an error if used
+            dataset_name = cfg.run.dataset_name
+            rollout_func = partial(nano_rollout_func, config=agent_config, dataset_name=dataset_name)
         elif agent_config.agent_kind == "mini":
             register_model({
                 f"{cfg.model.model_name}": {

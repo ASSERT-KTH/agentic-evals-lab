@@ -23,7 +23,8 @@ def run_evaluation(endpoint: str, model_name: str, subset: str, split: str, slic
     """Run nano_agent on SWE-bench tasks and save predictions using a process pool."""
 
     # Load SWE-bench dataset
-    dataset = load_dataset(f"princeton-nlp/SWE-bench_{subset}", split=split)
+    dataset_name = f"princeton-nlp/SWE-bench_{subset}"
+    dataset = load_dataset(dataset_name, split=split)
 
     # Parse slice
     # Supported forms:
@@ -79,7 +80,7 @@ def run_evaluation(endpoint: str, model_name: str, subset: str, split: str, slic
     print(f"Starting processing {len(inputs)} instances with {max_workers} workers...")
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         future_to_instance_id = {
-            executor.submit(_process_one, datum, config): datum["instance_id"] for datum in inputs
+            executor.submit(_process_one, datum, config, dataset_name): datum["instance_id"] for datum in inputs
         }
 
         completed = 0
