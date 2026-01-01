@@ -44,7 +44,7 @@ def main():
         instance_id = instance["instance_id"]
         # SWE-Gym format: xingyaoww/sweb.eval.x86_64.{instance_id_with_underscores}
         # Replace "__" with "_s_" in instance_id
-        transformed_id = instance_id.replace("__", "_s_")
+        transformed_id = instance_id.replace("__", "_s_").lower()
         image_uri = f"docker://xingyaoww/sweb.eval.x86_64.{transformed_id}"
         
         print(f"[{i+1}/{len(dataset)}] Pulling {image_uri}...")

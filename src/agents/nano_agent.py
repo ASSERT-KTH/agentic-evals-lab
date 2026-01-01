@@ -140,7 +140,7 @@ def _construct_image_name(instance_id: str, dataset_name: str) -> str:
     if _is_swegym_dataset(dataset_name):
         # SWE-Gym format: xingyaoww/sweb.eval.x86_64.{instance_id_with_underscores}
         # Replace "__" with "_s_" in instance_id
-        transformed_id = instance_id.replace("__", "_s_")
+        transformed_id = instance_id.replace("__", "_s_").lower()
         image_name = f"xingyaoww/sweb.eval.x86_64.{transformed_id}"
     elif dataset_name.startswith("princeton-nlp/SWE-bench"):
         # SWE-bench format: docker.io/slimshetty/swebench-verified:sweb.eval.x86_64.{instance_id}
