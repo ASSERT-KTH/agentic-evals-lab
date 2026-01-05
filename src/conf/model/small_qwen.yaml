@@ -3,7 +3,7 @@
 # Example: model_name: "outputs/sft_model_merged" or "bjarni/qwen3-8b-swe-gym-sft-merged"
 model_name: "Qwen/Qwen3-8B"
 chat_template: null
-attn_implementation: "flash_attention_2"  #  flash attention 3 is only supported on >= H100
+attn_implementation: "sdpa"
 
 # LoRA configuration
 # Having a lower rank LoRA is supported by literature, having low rank updates is actually beneficial to avoid overfitting / overspecializing

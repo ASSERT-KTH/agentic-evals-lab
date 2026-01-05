@@ -34,3 +34,5 @@ repomix-output.txt
 # singularity image for ttc
 **/*.sif
 .aider*
+
+.apptainer-cache
