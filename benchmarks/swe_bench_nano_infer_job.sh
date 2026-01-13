@@ -11,7 +11,7 @@
 set -euo pipefail
 
 # Defaults
-BASE_MODEL="Qwen/Qwen3-8B"     # HF model to serve with vLLM
+BASE_MODEL="Qwen/Qwen3-32B"     # HF model to serve with vLLM
 LORA_PATH=""                    # Optional LoRA path; adapter name auto-derived from basename if set
 MODEL_NAME=""                   # Model name passed to the agent; auto-derived if empty
 SCAFFOLD="nano-agent"           # Scaffold identifier for run tagging
@@ -20,7 +20,6 @@ SUBSET="verified"
 SPLIT="test"
 SLICE=""
 PORT=8000
-SIF="benchmarks/benchmark_container.sif"
 START_SERVER=1
 WANDB_API_KEY=""
 
@@ -51,15 +50,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Derive slice and per-task settings when running as a SLURM array
+# Array task ID is used as the run index (for variance measurement with multiple runs)
+# e.g., --array=0-9 gives 10 independent runs stored in run_0/ through run_9/
 TASK_ID=${SLURM_ARRAY_TASK_ID:-0}
-SHARD_SIZE=500
 
-# Auto-compute slice if not explicitly provided
-if [[ -z "$SLICE" ]]; then
-  START=$(( TASK_ID * SHARD_SIZE ))
-  END=$(( START + SHARD_SIZE ))
-  SLICE="${START}:${END}"
+# Stagger job starts to avoid HuggingFace cache lock contention when many jobs
+# try to load the same model simultaneously (30s delay per task)
+if [[ $TASK_ID -gt 0 ]]; then
+  STAGGER_DELAY=$(( TASK_ID * 30 ))
+  echo "Staggering start by ${STAGGER_DELAY}s (task $TASK_ID) to avoid cache contention..."
+  sleep "$STAGGER_DELAY"
 fi
 
 # Offset port to avoid conflicts if multiple tasks land on the same node
@@ -106,7 +106,7 @@ else
 fi
 
 RUN_TAG="${SCAFFOLD}-${MODEL_TAG}"
-OUTPUT_DIR="${OUTPUT_BASE_DIR}/${RUN_TAG}/shard_${TASK_ID}"
+OUTPUT_DIR="${OUTPUT_BASE_DIR}/${RUN_TAG}/run_${TASK_ID}"
 
 mkdir -p "$(dirname "logs/.keep")" "$OUTPUT_DIR"
 
@@ -123,7 +123,7 @@ wait_for_vllm() {
 # Minimal parser selection based on base model and optional chat template
 RP=""; TP=""; CT=""
 case "${BASE_MODEL,,}" in
-  *qwen*)     RP="--reasoning-parser qwen3"; TP="--tool-call-parser hermes";;
+  *qwen*)     RP="--reasoning-parser deepseek_r1"; TP="--tool-call-parser hermes";;
   *nemotron*) TP="--tool-call-parser llama3_json"; CT="--chat-template src/chat_templates/tool_chat_template_llama3.1_json.jinja";;
   *llama*)    TP="--tool-call-parser llama3_json"; CT="--chat-template src/chat_templates/tool_chat_template_llama3.1_json.jinja";;
   *mistral*)  TP="--tool-call-parser mistral"; CT="--chat-template src/chat_templates/tool_chat_template_mistral.jinja";;
@@ -161,17 +161,24 @@ if [[ $START_SERVER -eq 1 ]]; then
   fi
 fi
 
-echo "Running nano_agent evaluation with model '$MODEL_NAME'..."
-OPENAI_API_BASE="$ENDPOINT" \
-OPENAI_API_KEY="dummy" \
-uv run python benchmarks/swe_bench/run_nano_eval.py \
+echo "Running nano_agent evaluation (run $TASK_ID) with model '$MODEL_NAME'..."
+
+# Build eval command, only include --slice if explicitly provided
+EVAL_CMD=(uv run python benchmarks/swe_bench/run_nano_eval.py \
   --endpoint "$ENDPOINT" \
   --model-name "hosted_vllm/$MODEL_NAME" \
   --output-dir "$OUTPUT_DIR" \
   --subset "$SUBSET" \
   --split "$SPLIT" \
-  --slice "$SLICE" \
-  --backend "apptainer"
+  --backend "apptainer")
+
+if [[ -n "$SLICE" ]]; then
+  EVAL_CMD+=(--slice "$SLICE")
+fi
+
+OPENAI_API_BASE="$ENDPOINT" \
+OPENAI_API_KEY="dummy" \
+"${EVAL_CMD[@]}"
 
 echo "Predictions saved to $OUTPUT_DIR/preds.jsonl"
 
