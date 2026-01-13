@@ -11,6 +11,7 @@ import sys
 import argparse
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import Optional
 
 # Add parent dir to path to import nano_agent
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -19,7 +20,7 @@ from src.agents.nano_agent import _process_one, NanoConfig
 from datasets import load_dataset
 
 
-def run_evaluation(endpoint: str, model_name: str, subset: str, split: str, slice_spec: str, output_dir: Path, backend: str = "local"):
+def run_evaluation(endpoint: str, model_name: str, subset: str, split: str, slice_spec: Optional[str], output_dir: Path, backend: str = "local"):
     """Run nano_agent on SWE-bench tasks and save predictions using a process pool."""
 
     # Load SWE-bench dataset
@@ -53,7 +54,14 @@ def run_evaluation(endpoint: str, model_name: str, subset: str, split: str, slic
         token_limit=65536,
         time_limit=600,
         tool_limit=500,
+        # hyper-parameters as used in the qwen-3 tech report
+        # temperature=0.6,
+        # top_p=0.95,
+        # top_k=20,
+        # min_p=0,
+        # hyper-parameters as suggest by deepswe blog
         temperature=1.0,
+        thinking=True,
         backend=backend,
     )
 
@@ -156,7 +164,7 @@ def main():
                         help="SWE-bench subset (verified, lite, full)")
     parser.add_argument("--split", default="test",
                         help="Dataset split")
-    parser.add_argument("--slice", default=":25",
+    parser.add_argument("--slice", default=None,
                         help="Slice to run. Forms: :N (first N) or start:end (half-open)")
     parser.add_argument("--backend", choices=["local", "apptainer"], default="local",
                         help="Execution backend (local or apptainer)")
