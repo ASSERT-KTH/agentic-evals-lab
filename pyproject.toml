@@ -9,7 +9,7 @@ dependencies = [
     "trl @ git+https://github.com/ASSERT-KTH/trl.git@dev",
     # The agent we use for rollout generation,
     "nano-agent @ git+https://github.com/ASSERT-KTH/nano-agent.git",
-    "mini-swe-agent>=1.17.0",
+    "mini-swe-agent==1.17.4",
     # Optimized loss kernels, forked to support GSPO
     "liger-kernel @ git+https://github.com/BjarniHaukur/liger-kernel.git",
     # Other HF stuff

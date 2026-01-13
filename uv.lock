@@ -491,7 +491,7 @@ requires-dist = [
     { name = "huggingface-hub" },
     { name = "hydra-core", specifier = ">=1.3.2" },
     { name = "liger-kernel", git = "https://github.com/BjarniHaukur/liger-kernel.git" },
-    { name = "mini-swe-agent", specifier = ">=1.17.0" },
+    { name = "mini-swe-agent", specifier = "==1.17.4" },
     { name = "nano-agent", git = "https://github.com/ASSERT-KTH/nano-agent.git" },
     { name = "peft", specifier = ">=0.15.0" },
     { name = "pytest", specifier = ">=8.3.4" },
