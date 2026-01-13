@@ -29,28 +29,17 @@ dependencies = [
     "setuptools>=75.8.0",
     # efficient training of LLMs
     "deepspeed",
-    # The following is not strictly needed by crrl, but libraries incorrectly pin requirements so we need to narrow them
-    # accelerate installs incorrect version of boto3 without explicitly defining a lower bound
     "boto3>=1.34,<2",
     "botocore>=1.34,<2",
-    # when python >= 3.12, wandb crashes on importlib-metadata when any .dist-info folder has a missing Name: field
-    "wandb>=0.18.4",
     "swebench>=4.1.0",
-    "matplotlib>=3.10.8"
-]
-
-[project.optional-dependencies]
-# vLLM is required, but install is brittle needing torch to be installed first
-vllm = ["vllm==0.11.0; platform_system != 'Darwin'"]
-# Flash attention packages - flash-attn needed by transformers for training, flashinfer for vLLM
-flash = [
+    "torch-c-dlpack-ext>=0.1.4",
+    "vllm==0.11.0",
     "flash-attn==2.8.3; platform_system != 'Darwin'",
     "flashinfer-python==0.5.0; platform_system != 'Darwin'",
+    "pytest>=8.3.4",
+    "matplotlib>=3.10.0",
+    "scikit-learn>=1.6.1",
 ]
-dev = ["pytest>=8.3.4", "scikit-learn>=1.6.1"]
-# Different agents
-# aider = ["aider-chat @ git+https://github.com/BjarniHaukur/aider.git"]
-# sweagent = ["sweagent @ git+https://github.com/BjarniHaukur/SWE-agent.git"]
 
 [tool.uv]
 no-build-isolation-package = ["flash-attn", "flashinfer-python"]  
