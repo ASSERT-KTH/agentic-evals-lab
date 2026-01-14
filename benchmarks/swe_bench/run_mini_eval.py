@@ -10,6 +10,9 @@ import sys
 import argparse
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import Optional
+
+import yaml
 
 # Add project root to path to import mini_agent
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -18,8 +21,54 @@ from src.agents.mini_agent import _process_one, AgentConfig  # type: ignore
 from datasets import load_dataset
 
 
-def run_evaluation(endpoint: str, model_name: str, subset: str, split: str, slice_spec: str, output_dir: Path):
+def load_config(config_path: Path) -> dict:
+    """Load configuration from YAML file."""
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
+
+
+def run_evaluation(config_dict: dict, endpoint: Optional[str] = None, model_name: Optional[str] = None,
+                   subset: Optional[str] = None, split: Optional[str] = None, slice_spec: Optional[str] = None,
+                   output_dir: Optional[Path] = None):
     """Run mini_agent on SWE-bench tasks and save predictions using a process pool."""
+    
+    # Extract config values, allowing CLI overrides
+    agent_cfg = config_dict.get('agent', {})
+    eval_cfg = config_dict.get('eval', {})
+    model_cfg = config_dict.get('model', {})
+    endpoint_cfg = config_dict.get('endpoint', {})
+    
+    # Use CLI args if provided, otherwise use config
+    subset = subset or eval_cfg.get('subset', 'verified')
+    split = split or eval_cfg.get('split', 'test')
+    slice_spec = slice_spec or eval_cfg.get('slice', ':25')
+    
+    # Derive model name if not provided
+    if model_name is None:
+        model_name_from_config = model_cfg.get('model_name')
+        if model_name_from_config is None:
+            # Auto-derive from base_model
+            base_model = model_cfg.get('base_model', '')
+            model_name_from_config = base_model
+        model_name = endpoint_cfg.get('model_name_format', 'hosted_vllm/{MODEL_NAME}').format(
+            MODEL_NAME=model_name_from_config
+        )
+    
+    # Derive endpoint if not provided
+    if endpoint is None:
+        port = config_dict.get('job', {}).get('port', 8000)
+        endpoint = endpoint_cfg.get('base_url', 'http://localhost:{PORT}/v1').format(PORT=port)
+    
+    # Derive output directory if not provided
+    if output_dir is None:
+        output_base = eval_cfg.get('output_base_dir', 'swe_bench/')
+        scaffold = model_cfg.get('scaffold', 'mini-agent')
+        base_model = model_cfg.get('base_model', 'unknown')
+        # Sanitize model name for filesystem
+        model_tag = base_model.replace('/', '__').replace(' ', '_')
+        output_dir = Path(output_base) / f"{scaffold}-{model_tag}"
+    else:
+        output_dir = Path(output_dir)
 
     # Load SWE-bench dataset
     dataset = load_dataset(f"princeton-nlp/SWE-bench_{subset}", split=split)
@@ -41,14 +90,17 @@ def run_evaluation(endpoint: str, model_name: str, subset: str, split: str, slic
                 raise ValueError("slice end must be >= start")
             dataset = dataset.select(range(start_idx, min(end_idx, len(dataset))))
 
-    # Setup config for mini_agent (uses Litellm/OpenAI-compatible endpoint)
+    # Setup config for mini_agent from YAML config
     config = AgentConfig(
         api_base=endpoint,
-        model=model_name,  # e.g., "hosted_vllm/Qwen/Qwen3-8B"
-        token_limit=16384,
-        time_limit=40,
-        tool_limit=30,
-        temperature=0.2,
+        model=model_name,
+        token_limit=agent_cfg.get('token_limit', 16384),
+        time_limit=agent_cfg.get('time_limit', 40),
+        tool_limit=agent_cfg.get('tool_limit', 30),
+        temperature=agent_cfg.get('temperature', 0.2),
+        top_p=agent_cfg.get('top_p'),
+        top_k=agent_cfg.get('top_k'),
+        min_p=agent_cfg.get('min_p'),
     )
 
     # Prepare inputs for workers
@@ -65,8 +117,9 @@ def run_evaluation(endpoint: str, model_name: str, subset: str, split: str, slic
     predictions: dict[str, dict] = {}
     detailed_predictions: dict[str, dict] = {}
 
-    # Run with a process pool of up to 8 workers
-    max_workers = min(8, len(inputs)) if inputs else 0
+    # Run with a process pool
+    max_workers_config = eval_cfg.get('max_workers', 8)
+    max_workers = min(max_workers_config, len(inputs)) if inputs else 0
     if max_workers == 0:
         print("No instances to process.")
         return
@@ -139,23 +192,20 @@ def run_evaluation(endpoint: str, model_name: str, subset: str, split: str, slic
 
 def main():
     parser = argparse.ArgumentParser(description="Run SWE-bench eval with mini_agent")
-    parser.add_argument("--endpoint", default="http://localhost:8000/v1",
-                        help="Model endpoint URL")
-    parser.add_argument("--model-name", default="hosted_vllm/Qwen/Qwen3-8B",
-                        help="Model name passed to mini agent")
-    parser.add_argument("--output-dir", default="swe_bench/results_mini",
-                        help="Output directory for results")
-    parser.add_argument("--subset", default="verified",
-                        help="SWE-bench subset (verified, lite, full)")
-    parser.add_argument("--split", default="test",
-                        help="Dataset split")
-    parser.add_argument("--slice", default=":25",
-                        help="Slice to run. Forms: :N (first N) or start:end (half-open)")
+    parser.add_argument("--config", required=True, type=Path,
+                        help="Path to YAML config file (e.g., benchmarks/configs/mini_qwen3-8b.yaml)")
     
     args = parser.parse_args()
     
-    output_dir = Path(args.output_dir)
-    run_evaluation(args.endpoint, args.model_name, args.subset, args.split, args.slice, output_dir)
+    # Load config file
+    if not args.config.exists():
+        raise FileNotFoundError(f"Config file not found: {args.config}")
+    
+    config_dict = load_config(args.config)
+    
+    run_evaluation(
+        config_dict=config_dict,
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,60 @@
+# Agent configuration
+agent:
+  kind: nano
+  backend: apptainer
+  
+  # Hyperparameters
+  token_limit: 65536
+  time_limit: 600
+  tool_limit: 500
+  temperature: 1.0
+  thinking: true
+
+# Model configuration
+model:
+  base_model: "agentica-org/DeepSWE-Preview"
+  scaffold: "nano-agent"
+
+# vLLM server configuration
+vllm:
+  command: |
+    uv run vllm serve {BASE_MODEL} \
+      --port {PORT} \
+      --enable-auto-tool-choice \
+      --tensor-parallel-size 8 \
+      --max-model-len {MAX_CONTEXT_LEN} \
+      --hf-overrides '{{"max_position_embeddings": {MAX_CONTEXT_LEN}}}' \
+      --enable-prefix-caching \
+      --reasoning-parser deepseek_r1 \
+      --tool-call-parser hermes \
+      {LORA_MODULES}
+  
+  # Environment variables for vLLM
+  env:
+    MAX_CONTEXT_LEN: 65536
+    VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
+
+# Endpoint configuration
+endpoint:
+  provider: vllm
+  
+  # Base URL (for vLLM, this is constructed from port)
+  base_url: "http://localhost:{PORT}/v1"
+  
+  # Model name format passed to agent
+  # For vLLM: "hosted_vllm/{MODEL_NAME}"
+  model_name_format: "hosted_vllm/{MODEL_NAME}"  
+
+  litellm_drop_params: true
+
+# Evaluation/Dataset configuration
+eval:
+  subset: verified
+  split: test
+  output_base_dir: "nano_deepswe-preview_swe-bench/"
+  max_workers: 48
+
+# Job script settings
+job:
+  port: 8000
+  start_server: true
