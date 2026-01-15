@@ -203,6 +203,14 @@ def main():
     parser = argparse.ArgumentParser(description="Run SWE-bench eval with nano_agent")
     parser.add_argument("--config", required=True, type=Path,
                         help="Path to YAML config file (e.g., benchmarks/configs/nano_qwen3-32b.yaml)")
+    parser.add_argument("--endpoint", type=str, default=None,
+                        help="Override API endpoint from config")
+    parser.add_argument("--model-name", type=str, default=None,
+                        help="Override model name from config")
+    parser.add_argument("--output-dir", type=Path, default=None,
+                        help="Override output directory from config")
+    parser.add_argument("--slice", type=str, default=None,
+                        help="Slice specification (e.g., ':10' for first 10, '0:100' for range)")
     
     args = parser.parse_args()
     
@@ -214,6 +222,10 @@ def main():
     
     run_evaluation(
         config_dict=config_dict,
+        endpoint=args.endpoint,
+        model_name=args.model_name,
+        output_dir=args.output_dir,
+        slice_spec=args.slice,
     )
 
 

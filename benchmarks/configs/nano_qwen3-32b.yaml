@@ -26,7 +26,7 @@ vllm:
       --enable-auto-tool-choice \
       --tensor-parallel-size 8 \
       --max-model-len {MAX_CONTEXT_LEN} \
-      --hf-overrides '{{"max_position_embeddings": {MAX_CONTEXT_LEN}}}' \
+      --hf-overrides '{"max_position_embeddings": {MAX_CONTEXT_LEN}}' \
       --enable-prefix-caching \
       --reasoning-parser deepseek_r1 \
       --tool-call-parser hermes \

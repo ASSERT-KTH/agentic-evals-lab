@@ -38,7 +38,7 @@ parse_config() {
   python3 <<EOF
 import yaml
 import sys
-import json
+import base64
 
 with open("$CONFIG_FILE", 'r') as f:
     config = yaml.safe_load(f)
@@ -62,7 +62,9 @@ print(f"SLICE={eval_cfg.get('slice', '') or ''}")
 print(f"PORT={job_cfg.get('port', 8000)}")
 print(f"MAX_CONTEXT_LEN={vllm_cfg.get('env', {}).get('MAX_CONTEXT_LEN', 65536)}")
 print(f"VLLM_ALLOW_LONG_MAX_MODEL_LEN={vllm_cfg.get('env', {}).get('VLLM_ALLOW_LONG_MAX_MODEL_LEN', 1)}")
-print(f"VLLM_COMMAND={json.dumps(vllm_cfg.get('command', ''))}")
+cmd = vllm_cfg.get('command', '')
+cmd_b64 = base64.b64encode(cmd.encode('utf-8')).decode('ascii')
+print(f"VLLM_COMMAND_B64={cmd_b64}")
 print(f"LORA_MAX_RANK={vllm_cfg.get('lora', {}).get('max_rank', 32)}")
 print(f"MODEL_NAME_FORMAT={endpoint_cfg.get('model_name_format', 'hosted_vllm/{MODEL_NAME}')}")
 print(f"START_SERVER={1 if job_cfg.get('start_server', True) else 0}")
@@ -71,6 +73,9 @@ EOF
 
 # Load config values
 eval "$(parse_config)"
+
+# Decode base64-encoded VLLM command
+VLLM_COMMAND=$(echo "$VLLM_COMMAND_B64" | base64 -d)
 
 # Array task ID is used as the run index (for variance measurement with multiple runs)
 # e.g., --array=0-9 gives 10 independent runs stored in run_0/ through run_9/
