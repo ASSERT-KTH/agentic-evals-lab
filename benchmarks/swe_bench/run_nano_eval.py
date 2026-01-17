@@ -107,7 +107,7 @@ def run_evaluation(config_dict: dict, endpoint: Optional[str] = None, model_name
         top_p=agent_cfg.get('top_p'),
         top_k=agent_cfg.get('top_k'),
         min_p=agent_cfg.get('min_p'),
-        thinking=agent_cfg.get('thinking', True),
+        thinking=agent_cfg.get('thinking'),
         backend=backend,
     )
 

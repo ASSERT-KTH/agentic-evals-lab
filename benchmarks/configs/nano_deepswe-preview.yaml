@@ -8,7 +8,6 @@ agent:
   time_limit: 600
   tool_limit: 500
   temperature: 1.0
-  thinking: true
 
 # Model configuration
 model:
@@ -44,8 +43,12 @@ endpoint:
   # Model name format passed to agent
   # For vLLM: "hosted_vllm/{MODEL_NAME}"
   model_name_format: "hosted_vllm/{MODEL_NAME}"  
-
+  
   litellm_drop_params: true
+  
+  # Extra parameters to pass to litellm (e.g., enable_thinking for reasoning models)
+  extra_params:
+    enable_thinking: true
 
 # Evaluation/Dataset configuration
 eval:

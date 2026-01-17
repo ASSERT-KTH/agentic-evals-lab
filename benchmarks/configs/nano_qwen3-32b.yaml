@@ -11,7 +11,6 @@ agent:
   top_p: 0.95
   top_k: 20
   min_p: 0
-  thinking: true
 
 # Model configuration
 model:
@@ -52,6 +51,10 @@ endpoint:
   api_key: null  # or "sk-..." for OpenAI/Mistral/etc.
   
   litellm_drop_params: true
+  
+  # Extra parameters to pass to litellm (e.g., enable_thinking for reasoning models)
+  extra_params:
+    enable_thinking: true
 
 # Evaluation/Dataset configuration
 eval:

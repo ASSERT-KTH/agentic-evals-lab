@@ -1,0 +1,46 @@
+# Agent configuration
+agent:
+  kind: nano
+  backend: apptainer
+  
+  # Hyperparameters
+  token_limit: 256000
+  time_limit: 600
+  tool_limit: 500
+  temperature: 0.2
+  thinking: null # None means omit parameter entirely from litellm call
+
+# Model configuration
+model:
+  base_model: "devstral-2512"  # Mistral model identifier (without org prefix for API)
+  scaffold: "nano-agent"  # Identifier for run tagging
+
+# Endpoint configuration
+endpoint:
+  provider: mistral  # Using Mistral API via litellm
+  
+  # Base URL for Mistral API
+  base_url: "https://api.mistral.ai/v1"
+  
+  # Model name format passed to agent
+  # For Mistral API via litellm: use "mistral/{MODEL_NAME}" format
+  model_name_format: "mistral/{MODEL_NAME}"
+  
+  # API key (should be set via MISTRAL_API_KEY environment variable)
+  # Can also be set here if needed: api_key: "your-api-key-here"
+  api_key: null  # Uses MISTRAL_API_KEY env var by default
+  
+  litellm_drop_params: true
+
+# Evaluation/Dataset configuration
+eval:
+  subset: verified
+  split: test
+  slice: null
+  output_base_dir: "nano_devstral_swe-bench/"
+  max_workers: 48
+
+# Job script settings
+job:
+  port: 8000
+  start_server: false  # No vLLM server needed for external API

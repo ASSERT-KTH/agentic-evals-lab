@@ -159,7 +159,7 @@ class NanoConfig:
     agent_kind: str = "nano"
     model: Optional[str] = None
     api_base: str = "http://localhost:8000/v1"
-    thinking: bool = False
+    thinking: Optional[bool] = None  # None means omit parameter entirely
     token_limit: int = 8192
     tool_limit: int = 30
     time_limit: int = 60
