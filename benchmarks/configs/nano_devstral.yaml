@@ -1,7 +1,7 @@
 # Agent configuration
 agent:
   kind: nano
-  backend: apptainer
+  backend: docker
   
   # Hyperparameters
   token_limit: 256000

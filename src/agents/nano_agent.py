@@ -6,7 +6,7 @@ from dataclasses import dataclass, asdict
 from concurrent.futures import ThreadPoolExecutor
 
 from nano import Agent
-from nano.env import Environment, ApptainerEnvironment
+from nano.env import Environment, ApptainerEnvironment, DockerEnvironment
 
 from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 
@@ -125,7 +125,7 @@ def _get_setup_fn(dataset_name: str):
 
 def _construct_image_name(instance_id: str, dataset_name: str) -> str:
     """
-    Construct the Docker image name for Apptainer backend based on dataset type.
+    Construct the Docker image name for Apptainer or Docker backend based on dataset type.
     
     Args:
         instance_id: The instance identifier from the dataset
@@ -187,12 +187,7 @@ def _process_one(data: dict[str, Any], config: NanoConfig, dataset_name: Optiona
     env = agent_kwargs.pop("env", None)
 
     # Initialize agent with appropriate environment
-    if backend == "apptainer" and env is None:
-        # If using Apptainer backend but env not provided in config, we need to construct it
-        # This logic might belong better in the caller, but we can handle it here or
-        # expect the caller to pass the fully constructed environment in `config.env`.
-        # Based on the reference, the caller (run_nano_eval) should likely construct the environment.
-        # However, `_process_one` is called per instance, and the environment depends on the instance ID.
+    if (backend == "apptainer" or backend == "docker") and env is None:
         instance_id = data.get("instance_id")
         if not instance_id:
             raise ValueError("instance_id is required when using apptainer backend")
@@ -203,7 +198,10 @@ def _process_one(data: dict[str, Any], config: NanoConfig, dataset_name: Optiona
         image_name = _construct_image_name(instance_id, dataset_name)
         workdir = "/testbed"
         setup_fn = _get_setup_fn(dataset_name)
-        env = ApptainerEnvironment(image=f"docker://{image_name}", workdir=workdir, setup_fn=setup_fn)
+        if backend == "apptainer":
+            env = ApptainerEnvironment(image=f"docker://{image_name}", workdir=workdir, setup_fn=setup_fn)
+        elif backend == "docker":
+            env = DockerEnvironment(image=f"{image_name}", workdir=workdir, setup_fn=setup_fn)
         agent_kwargs["env"] = env
     elif env:
         agent_kwargs["env"] = env
@@ -294,8 +292,8 @@ def nano_rollout_func(data: list[dict[str, Any]], config: NanoConfig, dataset_na
                 f"Unsupported dataset: {dataset_name}. "
                 f"Supported datasets are: {', '.join(sorted(SUPPORTED_DATASETS))}"
             )
-    elif config.backend == "apptainer":
-        raise ValueError("dataset_name is required when using apptainer backend")
+    elif config.backend == "apptainer" or config.backend == "docker":
+        raise ValueError("dataset_name is required when using apptainer or docker backend")
 
     logger.info(f"Starting {len(data)} agent rollouts" + (f" with dataset {dataset_name}" if dataset_name else ""))
     start_time = time.time()
