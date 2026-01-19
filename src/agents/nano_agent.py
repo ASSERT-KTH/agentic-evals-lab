@@ -207,9 +207,10 @@ def _process_one(data: dict[str, Any], config: NanoConfig, dataset_name: Optiona
         agent_kwargs["env"] = env
 
     agent = Agent(**agent_kwargs)
-
+    
     diff = ""
     temp_folder = None
+    error_info: dict[str, Any] | None = None
     
     if backend == "local":
         try:
@@ -237,8 +238,15 @@ def _process_one(data: dict[str, Any], config: NanoConfig, dataset_name: Optiona
     try:
         diff = agent.run(task=data["problem_statement"], repo_root=temp_folder)
     except Exception as e:
+        # Log error to standard logs
         logger.error(f"Error in _process_one: {type(e).__name__}: {e}")
+        # Ensure we still produce a result entry and surface the error
         diff = ""
+        error_info = {
+            "stage": "agent.run",
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+        }
     finally:
         if backend == "local" and temp_folder: clean_repo_dir(temp_folder)
 
@@ -263,8 +271,11 @@ def _process_one(data: dict[str, Any], config: NanoConfig, dataset_name: Optiona
         generated_diff=diff,
         token_usage=agent.token_usage,
         tool_usage=agent.tool_usage,
-        **agent.tool_stats
+        **agent.tool_stats,
     )
+    if error_info is not None:
+        # This will show up in the detailed_predictions.jsonl file
+        result["error"] = error_info
     return result
 
 

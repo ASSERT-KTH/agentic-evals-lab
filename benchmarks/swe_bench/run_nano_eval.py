@@ -121,58 +121,112 @@ def run_evaluation(config_dict: dict, endpoint: Optional[str] = None, model_name
             "base_commit": instance["base_commit"],
             "version": instance.get("version", ""),
         })
-
-    predictions: dict[str, dict] = {}
-    detailed_predictions: dict[str, dict] = {}
-
-    # Run with a process pool
-    max_workers_config = eval_cfg.get('max_workers', 48)
-    max_workers = min(max_workers_config, len(inputs)) if inputs else 0
-    if max_workers == 0:
-        print("No instances to process.")
-        return
-
-    print(f"Starting processing {len(inputs)} instances with {max_workers} workers...")
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        future_to_instance_id = {
-            executor.submit(_process_one, datum, config, dataset_name): datum["instance_id"] for datum in inputs
-        }
-
-        completed = 0
-        for future in as_completed(future_to_instance_id):
-            instance_id = future_to_instance_id[future]
-            try:
-                result = future.result()
-            except Exception as e:
-                print(f"Error processing {instance_id}: {e}")
-                result = {}
-
-            # Extract model patch; prefer 'generated_diff' produced by nano_agent
-            patch = (
-                result.get("generated_diff", "")
-                or result.get("patch", "")
-                or result.get("diff", "")
-                or result.get("model_patch", "")
-            )
-
-            predictions[instance_id] = {
-                "model_patch": patch or "",
-                "model_name_or_path": f"nano-agent-{config.model}",
-            }
-
-            # Store the entire result dictionary for detailed analysis
-            if result:
-                detailed_predictions[instance_id] = result
-
-            completed += 1
-            if completed % 5 == 0 or completed == len(inputs):
-                print(f"Progress: {completed}/{len(inputs)} completed")
     
-    # Save predictions in JSONL format for SWE-bench harness
+    # Ensure output directory exists so we can read/write resume files
     output_dir.mkdir(parents=True, exist_ok=True)
     jsonl_file = output_dir / "preds.jsonl"
+    detailed_file = output_dir / "detailed_predictions.jsonl"
+    
+    # Load existing predictions (for resume) if present
+    predictions: dict[str, dict] = {}
+    detailed_predictions: dict[str, dict] = {}
+    
+    if jsonl_file.exists():
+        print(f"Resuming from existing predictions at {jsonl_file}")
+        with open(jsonl_file, "r") as f:
+            for line in f:
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                iid = rec.get("instance_id")
+                if not iid:
+                    continue
+                predictions[iid] = {
+                    "model_patch": rec.get("model_patch", "") or "",
+                    "model_name_or_path": rec.get("model_name_or_path", f"nano-agent-{config.model}"),
+                }
+    
+    if detailed_file.exists():
+        print(f"Resuming from existing detailed predictions at {detailed_file}")
+        with open(detailed_file, "r") as f:
+            for line in f:
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                iid = rec.get("instance_id")
+                det = rec.get("detailed_predictions")
+                if not iid or det is None:
+                    continue
+                detailed_predictions[iid] = det
+    
+    # Decide which instances still need to be processed:
+    # - If there is no existing prediction, or
+    # - If existing prediction has empty patch, or
+    # - If detailed prediction contains an "error" field
+    inputs_to_run: list[dict] = []
+    for datum in inputs:
+        iid = datum["instance_id"]
+        existing_pred = predictions.get(iid)
+        existing_detail = detailed_predictions.get(iid)
+        has_non_empty_patch = bool(existing_pred and existing_pred.get("model_patch"))
+        has_error = bool(existing_detail and isinstance(existing_detail, dict) and existing_detail.get("error"))
+        if (not existing_pred) or (not has_non_empty_patch) or has_error:
+            inputs_to_run.append(datum)
+    
+    print(f"{len(inputs) - len(inputs_to_run)} instances already completed, {len(inputs_to_run)} remaining to run.")
+    
+    # Run remaining instances with a process pool
+    max_workers_config = eval_cfg.get('max_workers', 48)
+    max_workers = min(max_workers_config, len(inputs_to_run)) if inputs_to_run else 0
+    if max_workers == 0:
+        print("No new instances to process; writing out consolidated files.")
+    else:
+        print(f"Starting processing {len(inputs_to_run)} remaining instances with {max_workers} workers...")
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            future_to_instance_id = {
+                executor.submit(_process_one, datum, config, dataset_name): datum["instance_id"] for datum in inputs_to_run
+            }
+        
+            completed = 0
+            for future in as_completed(future_to_instance_id):
+                instance_id = future_to_instance_id[future]
+                try:
+                    result = future.result()
+                except Exception as e:
+                    print(f"Error processing {instance_id}: {e}")
+                    result = {}
+        
+                # Extract model patch; prefer 'generated_diff' produced by nano_agent
+                patch = (
+                    result.get("generated_diff", "")
+                    or result.get("patch", "")
+                    or result.get("diff", "")
+                    or result.get("model_patch", "")
+                )
+        
+                predictions[instance_id] = {
+                    "model_patch": patch or "",
+                    "model_name_or_path": f"nano-agent-{config.model}",
+                }
+        
+                # Store the entire result dictionary for detailed analysis
+                if result:
+                    detailed_predictions[instance_id] = result
+        
+                completed += 1
+                if completed % 5 == 0 or completed == len(inputs_to_run):
+                    print(f"Progress: {completed}/{len(inputs_to_run)} completed")
+    
+    # Save predictions in JSONL format for SWE-bench harness
     with open(jsonl_file, "w") as f:
-        for instance_id, pred_data in predictions.items():
+        for datum in inputs:
+            instance_id = datum["instance_id"]
+            pred_data = predictions.get(instance_id, {
+                "model_patch": "",
+                "model_name_or_path": f"nano-agent-{config.model}",
+            })
             obj = {
                 "instance_id": instance_id,
                 "model_name_or_path": pred_data["model_name_or_path"],
@@ -181,11 +235,12 @@ def run_evaluation(config_dict: dict, endpoint: Optional[str] = None, model_name
             f.write(json.dumps(obj, ensure_ascii=False) + "\n")
     
     print(f"Saved JSONL format to {jsonl_file}")
-
+    
     # Save detailed predictions (entire result dictionaries)
-    detailed_file = output_dir / "detailed_predictions.jsonl"
     with open(detailed_file, "w") as f:
-        for instance_id, det in detailed_predictions.items():
+        for datum in inputs:
+            instance_id = datum["instance_id"]
+            det = detailed_predictions.get(instance_id, {})
             obj = {"instance_id": instance_id, "detailed_predictions": det}
             f.write(json.dumps(obj, ensure_ascii=False, default=str) + "\n")
     print(f"Saved detailed predictions to {detailed_file}")
