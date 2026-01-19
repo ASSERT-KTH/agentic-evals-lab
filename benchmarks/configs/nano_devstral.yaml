@@ -38,7 +38,7 @@ eval:
   split: test
   slice: null
   output_base_dir: "nano_devstral_swe-bench/"
-  max_workers: 48
+  max_workers: 32
 
 # Job script settings
 job:

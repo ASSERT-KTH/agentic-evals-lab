@@ -19,7 +19,7 @@ subset="verified"
 split="test"
 preds=""
 run_id=""
-max_workers="8"
+max_workers="16"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 LOGS_DIR="$PROJECT_ROOT/eval_logs"
 
-max_workers="8"
+max_workers="16"
 dry_run=false
 
 while [[ $# -gt 0 ]]; do
