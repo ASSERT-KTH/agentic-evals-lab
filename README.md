@@ -1,6 +1,8 @@
 # agentic-evals-lab
 
-A framework for training and running LLMs with reinforcement learning in agentic settings. Covers the full pipeline: GRPO/SFT training, agent inference, and agentic evaluation. The companion results/trajectories repository contains evaluation outputs.
+A framework for training and running LLMs with reinforcement learning in agentic settings. Covers the full pipeline: GRPO/SFT training, agent inference, and agentic evaluation.
+
+**Artifacts** (trajectories, eval results): [ASSERT-KTH/agentic-evals-artifacts](https://huggingface.co/datasets/ASSERT-KTH/agentic-evals-artifacts) on Hugging Face.
 
 ## Citation
 
