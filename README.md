@@ -1,13 +1,21 @@
-# CodeRepairRL - Reinforcement Learning for Program Repair
+# agentic-evals-lab
 
-## Overview
+A framework for training and running LLMs with reinforcement learning in agentic settings. Covers the full pipeline: GRPO/SFT training, agent inference, and agentic evaluation. The companion results/trajectories repository contains evaluation outputs.
 
-CodeRepairRL leverages recent advancements in applying Reinforcement Learning (RL) to Large Language Models (LLMs) to fine-tune them for domain-specific tasks. Our ultimate goal is to develop open source method of training agentic coding behaviour unto models.
+## Citation
 
+If you use this framework, please cite our paper:
 
-## Academic Paper
+```bibtex
+@article{bjarnason2026randomness,
+  title={On Randomness in Agentic Evals},
+  author={Bjarnason, Bjarni Haukur and Silva, Andr{\'e} and Monperrus, Martin},
+  journal={arXiv preprint arXiv:2602.07150},
+  year={2026}
+}
+```
 
-The methodology and findings of this project are documented in an academic paper. The LaTeX repository for the paper is available at [CodeRepairRL-Paper](https://github.com/BjarniHaukur/CodeRepairRL-Paper).
+Paper: [arXiv:2602.07150](https://arxiv.org/abs/2602.07150)
 
 ## Getting Started
 

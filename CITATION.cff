@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+title: "agentic-evals-lab"
+message: "If you use this software, please cite the associated paper."
+type: software
+authors:
+  - family-names: Bjarnason
+    given-names: Bjarni Haukur
+  - family-names: Silva
+    given-names: André
+  - family-names: Monperrus
+    given-names: Martin
+preferred-citation:
+  type: article
+  title: "On Randomness in Agentic Evals"
+  authors:
+    - family-names: Bjarnason
+      given-names: Bjarni Haukur
+    - family-names: Silva
+      given-names: André
+    - family-names: Monperrus
+      given-names: Martin
+  journal: "arXiv preprint arXiv:2602.07150"
+  year: 2026
+  url: "https://arxiv.org/abs/2602.07150"
